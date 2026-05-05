@@ -5,6 +5,12 @@ on:
     # 北京时间 20:00，每天生成一次晚间报告
     - cron: "0 12 * * *"
   workflow_dispatch:
+    inputs:
+      force_push:
+        description: "立即推送到飞书等通知渠道"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: vercel-static-report-${{ github.ref_name }}
@@ -64,19 +70,18 @@ jobs:
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
           S3_REGION: ${{ secrets.S3_REGION }}
+          TRENDRADAR_FORCE_PUSH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_push && 'true' || 'false' }}
           GITHUB_ACTIONS: true
         run: uv run python -m trendradar
 
       - name: Publish static report into public
-        run: |
-          mkdir -p public
-          cp output/index.html public/index.html
+        run: npm run build
 
       - name: Commit updated report
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/index.html
+          git add public/index.html public/report.html
           if git diff --cached --quiet; then
             echo "No report changes to commit."
           else

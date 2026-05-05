@@ -1,17 +1,445 @@
-import { mkdir, copyFile, access } from "node:fs/promises";
+import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = process.cwd();
 const outputReport = path.join(root, "output", "index.html");
 const publicDir = path.join(root, "public");
-const publicReport = path.join(publicDir, "index.html");
+const publicReport = path.join(publicDir, "report.html");
+const publicIndex = path.join(publicDir, "index.html");
 
 await mkdir(publicDir, { recursive: true });
+
+let hasReport = false;
 
 try {
   await access(outputReport);
   await copyFile(outputReport, publicReport);
-  console.log("Copied output/index.html to public/index.html");
+  hasReport = true;
+  console.log("Copied output/index.html to public/report.html");
 } catch {
-  console.log("No generated report found. Keeping existing public/index.html placeholder.");
+  try {
+    await access(publicReport);
+    hasReport = true;
+    console.log("No generated report found. Keeping existing public/report.html.");
+  } catch {
+    await writeFile(publicReport, createEmptyReport(), "utf8");
+    console.log("No report found. Created public/report.html placeholder.");
+  }
+}
+
+await writeFile(publicIndex, createShell({ hasReport }), "utf8");
+console.log("Generated public/index.html control shell");
+
+function createShell({ hasReport }) {
+  const buildTime = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date());
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrendRadar 云端控制台</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --panel-soft: #f0f3f6;
+      --text: #18202a;
+      --muted: #637083;
+      --line: #dbe1e8;
+      --accent: #0f766e;
+      --accent-dark: #115e59;
+      --warn: #b45309;
+      --shadow: 0 18px 60px rgba(25, 34, 45, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      border-bottom: 1px solid var(--line);
+      background: rgba(246, 247, 249, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar-inner {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 18px 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      margin: 0 0 5px;
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    button,
+    .link-button {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 14px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    button:hover,
+    .link-button:hover {
+      transform: translateY(-1px);
+      border-color: #bac6d4;
+    }
+
+    .primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .primary:hover {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    button:disabled {
+      opacity: 0.62;
+      cursor: wait;
+      transform: none;
+    }
+
+    .content {
+      width: min(1440px, calc(100% - 32px));
+      margin: 20px auto 32px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      min-height: 96px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 8px 28px rgba(25, 34, 45, 0.06);
+    }
+
+    .metric-label {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .metric-note {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .notice {
+      min-height: 48px;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .notice strong {
+      color: var(--text);
+    }
+
+    .notice[data-tone="success"] {
+      border-color: rgba(15, 118, 110, 0.3);
+      background: #ecfdf5;
+      color: #14532d;
+    }
+
+    .notice[data-tone="error"] {
+      border-color: rgba(180, 83, 9, 0.35);
+      background: #fff7ed;
+      color: #7c2d12;
+    }
+
+    .report-frame {
+      height: calc(100vh - 265px);
+      min-height: 620px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #ffffff;
+    }
+
+    @media (max-width: 920px) {
+      .topbar-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .status-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .report-frame {
+        height: 72vh;
+        min-height: 560px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .topbar-inner,
+      .content {
+        width: min(100% - 20px, 1440px);
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      button,
+      .link-button {
+        justify-content: center;
+      }
+
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <p class="eyebrow">TrendRadar</p>
+          <h1>热点报告控制台</h1>
+        </div>
+        <div class="actions" aria-label="报告操作">
+          <button class="primary" id="runNow" type="button">立即生成并推送飞书</button>
+          <button id="refreshPage" type="button">刷新报告</button>
+          <a class="link-button" href="/report.html" target="_blank" rel="noopener">打开原始报告</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="content" aria-label="报告状态">
+      <div class="status-grid">
+        <article class="metric">
+          <p class="metric-label">线上报告</p>
+          <p class="metric-value">${hasReport ? "已发布" : "等待首次生成"}</p>
+          <p class="metric-note">页面构建时间：${buildTime}</p>
+        </article>
+        <article class="metric">
+          <p class="metric-label">实时生成</p>
+          <p class="metric-value">GitHub Actions 执行</p>
+          <p class="metric-note">触发后通常 1 到 3 分钟更新线上页面</p>
+        </article>
+        <article class="metric">
+          <p class="metric-label">飞书推送</p>
+          <p class="metric-value">按钮触发一次</p>
+          <p class="metric-note">需要 Vercel 已配置 GitHub 触发密钥</p>
+        </article>
+        <article class="metric">
+          <p class="metric-label">每日任务</p>
+          <p class="metric-value">北京时间 20:00</p>
+          <p class="metric-note">自动生成并提交最新报告</p>
+        </article>
+      </div>
+
+      <div class="notice" id="statusBox">
+        <strong>当前状态：</strong>可以查看下方报告，也可以手动触发一次实时生成和飞书推送。
+      </div>
+
+      <section class="report-frame" aria-label="TrendRadar 报告">
+        <iframe title="TrendRadar 最新报告" src="/report.html#tab-0"></iframe>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const runNow = document.querySelector("#runNow");
+    const refreshPage = document.querySelector("#refreshPage");
+    const statusBox = document.querySelector("#statusBox");
+
+    function setStatus(message, tone) {
+      statusBox.innerHTML = message;
+      if (tone) {
+        statusBox.dataset.tone = tone;
+      } else {
+        delete statusBox.dataset.tone;
+      }
+    }
+
+    refreshPage.addEventListener("click", () => {
+      window.location.reload();
+    });
+
+    runNow.addEventListener("click", async () => {
+      const confirmed = window.confirm("现在会触发一次报告生成，并在完成后推送到飞书。继续吗？");
+      if (!confirmed) return;
+
+      runNow.disabled = true;
+      setStatus("<strong>正在触发：</strong>已向服务器发送请求，请稍等。");
+
+      try {
+        const response = await fetch("/api/run-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ force_push: true }),
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const detail = data.error || data.message || "触发失败，请检查 Vercel 环境变量。";
+          throw new Error(detail);
+        }
+
+        setStatus(
+          "<strong>已触发：</strong>GitHub Actions 正在生成报告并推送飞书。通常 1 到 3 分钟后刷新本页即可看到新内容。",
+          "success"
+        );
+      } catch (error) {
+        setStatus("<strong>触发失败：</strong>" + error.message, "error");
+      } finally {
+        runNow.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>`;
+}
+
+function createEmptyReport() {
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrendRadar 报告</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #ffffff;
+      color: #18202a;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    main {
+      width: min(560px, calc(100% - 32px));
+      padding: 28px;
+      border: 1px solid #dbe1e8;
+      border-radius: 8px;
+      background: #f6f7f9;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0;
+      color: #637083;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>报告尚未生成</h1>
+    <p>请在 GitHub Actions 中运行 Update Vercel Static Report，或在控制台点击“立即生成并推送飞书”。</p>
+  </main>
+</body>
+</html>`;
 }

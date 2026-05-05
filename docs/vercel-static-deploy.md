@@ -3,8 +3,8 @@
 TrendRadar 的爬虫和定时任务不适合直接跑在 Vercel 上。推荐结构是：
 
 1. GitHub Actions 每天运行 TrendRadar，生成 `output/index.html`。
-2. 工作流把最新报告复制到 `public/index.html` 并提交回仓库。
-3. Vercel 只部署 `public/` 里的静态 HTML。
+2. 工作流把最新报告写入 `public/report.html`，并生成 `public/index.html` 控制台。
+3. Vercel 部署 `public/` 里的静态页面，同时提供一个安全的触发接口。
 
 ## Vercel 项目设置
 
@@ -33,6 +33,26 @@ TrendRadar 的爬虫和定时任务不适合直接跑在 Vercel 上。推荐结�
 
 其他推送渠道按需添加。
 
+## Vercel 环境变量
+
+如果要使用网页上的“立即生成并推送飞书”按钮，需要在 Vercel 项目中打开：
+
+`Settings` → `Environment Variables`
+
+添加：
+
+- `GITHUB_DISPATCH_TOKEN`
+
+这个值需要是 GitHub token，并且对 `1518338634-byte/trendradar` 仓库有触发 Actions 的权限。建议使用 Fine-grained personal access token，只授权这个仓库，并开启 `Actions: Read and write`、`Contents: Read`。
+
+可选变量：
+
+- `TRENDRADAR_GITHUB_REPOSITORY`，默认 `1518338634-byte/trendradar`
+- `TRENDRADAR_WORKFLOW_FILE`，默认 `update-vercel-report.yml`
+- `TRENDRADAR_GITHUB_REF`，默认 `master`
+
+这些变量只存在 Vercel 服务端，不会暴露在网页源码里。
+
 ## 手动生成第一版报告
 
 第一次部署后，打开 GitHub 仓库：
@@ -40,6 +60,8 @@ TrendRadar 的爬虫和定时任务不适合直接跑在 Vercel 上。推荐结�
 `Actions` → `Update Vercel Static Report` → `Run workflow`
 
 工作流完成后会提交新的 `public/index.html`，Vercel 会自动重新部署。
+
+也可以打开 Vercel 站点首页，点击“立即生成并推送飞书”。按钮会触发同一个 GitHub Actions 工作流，并强制执行一次通知推送。
 
 ## 定时
 

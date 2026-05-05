@@ -928,6 +928,7 @@ class NewsAnalyzer:
         has_news_content = self._has_valid_content(stats, new_titles)
         has_rss_content = bool(rss_items and len(rss_items) > 0)
         has_any_content = has_news_content or has_rss_content
+        force_push = os.environ.get("TRENDRADAR_FORCE_PUSH", "").lower() in {"1", "true", "yes", "on"}
 
         # 计算热榜匹配条数
         news_count = sum(len(stat.get("titles", [])) for stat in stats) if stats else 0
@@ -948,11 +949,14 @@ class NewsAnalyzer:
             print(f"[推送] 准备发送：{' + '.join(content_parts)}，合计 {total_count} 条")
 
             # 调度系统决策
-            if not schedule.push:
+            if force_push:
+                print("[推送] 手动触发：本次强制推送到通知渠道")
+
+            if not schedule.push and not force_push:
                 print("[推送] 调度器: 当前时间段不执行推送")
                 return False
 
-            if schedule.once_push and schedule.period_key:
+            if schedule.once_push and schedule.period_key and not force_push:
                 scheduler = self.ctx.create_scheduler()
                 date_str = self.ctx.format_date()
                 if scheduler.already_executed(schedule.period_key, "push", date_str):
@@ -999,7 +1003,7 @@ class NewsAnalyzer:
 
             # 记录推送成功
             if any(results.values()):
-                if schedule.once_push and schedule.period_key:
+                if schedule.once_push and schedule.period_key and not force_push:
                     scheduler = self.ctx.create_scheduler()
                     date_str = self.ctx.format_date()
                     scheduler.record_execution(schedule.period_key, "push", date_str)
