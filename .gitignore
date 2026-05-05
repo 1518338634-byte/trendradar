@@ -1,0 +1,6 @@
+output/index.html
+output/html/
+output/rss/
+output/news/*.db
+control-panel/*.log
+*.local

@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TrendRadar 控制台</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f7f4;
+        --panel: #ffffff;
+        --text: #1f2528;
+        --muted: #657076;
+        --line: #dfe3df;
+        --accent: #0f766e;
+        --accent-strong: #0b5f59;
+        --danger: #b42318;
+        --soft: #eef6f3;
+        --shadow: 0 12px 30px rgba(31, 37, 40, 0.08);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      button, input, textarea {
+        font: inherit;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+      }
+
+      aside {
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+        padding: 22px;
+        overflow: auto;
+      }
+
+      main {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(10px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.2;
+      }
+
+      h2 {
+        margin: 24px 0 12px;
+        font-size: 15px;
+      }
+
+      .sub {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .status-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fbfbf9;
+        min-height: 70px;
+      }
+
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 15px;
+        word-break: break-word;
+      }
+
+      .actions {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 11px 12px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+        text-align: center;
+      }
+
+      .btn:hover { border-color: #b8c2bd; }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+      .btn.primary:hover { background: var(--accent-strong); }
+
+      form {
+        display: grid;
+        gap: 10px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      input, textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 11px;
+        color: var(--text);
+        background: #fff;
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      .log {
+        white-space: pre-wrap;
+        word-break: break-word;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        min-height: 96px;
+        max-height: 220px;
+        overflow: auto;
+        padding: 10px;
+        background: #101417;
+        color: #e9f2ef;
+        font-size: 12px;
+      }
+
+      .keywords {
+        display: grid;
+        gap: 8px;
+        max-height: 250px;
+        overflow: auto;
+      }
+
+      .chip {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 10px;
+        background: #fbfbf9;
+      }
+
+      .chip strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      .chip span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+
+      iframe {
+        width: 100%;
+        flex: 1;
+        border: 0;
+        background: white;
+      }
+
+      .notice {
+        margin-top: 12px;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: var(--soft);
+        color: #19443f;
+        font-size: 13px;
+      }
+
+      @media (max-width: 980px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        iframe {
+          min-height: 72vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside>
+        <h1>TrendRadar 控制台</h1>
+        <p class="sub">手动抓取、查看报告、添加热点监控。</p>
+
+        <section>
+          <h2>当前状态</h2>
+          <div class="status-grid">
+            <div class="metric"><span>报告端口</span><strong id="webPort">-</strong></div>
+            <div class="metric"><span>最近更新</span><strong id="updatedAt">-</strong></div>
+            <div class="metric"><span>推送窗口</span><strong id="pushWindow">-</strong></div>
+            <div class="metric"><span>AI 模型</span><strong id="aiModel">-</strong></div>
+            <div class="metric"><span>飞书</span><strong id="feishu">-</strong></div>
+            <div class="metric"><span>立即推送</span><strong id="immediate">-</strong></div>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="runBtn">立即抓取一次</button>
+            <button class="btn" id="refreshBtn">刷新状态</button>
+            <button class="btn" id="restartBtn">重启 TrendRadar</button>
+          </div>
+          <div class="notice">“立即抓取一次”会调用当前容器运行任务；若配置了飞书推送，命中推送规则时会发到飞书。</div>
+        </section>
+
+        <section>
+          <h2>新增热点监控</h2>
+          <form id="keywordForm">
+            <label>
+              监控名称
+              <input name="name" placeholder="例如：机器人产业" required />
+            </label>
+            <label>
+              关键词
+              <textarea name="keywords" placeholder="每行一个，或用逗号分隔&#10;机器人&#10;具身智能&#10;特斯拉 Optimus" required></textarea>
+            </label>
+            <label>
+              最多显示条数
+              <input name="limit" type="number" min="0" placeholder="不填则不限制" />
+            </label>
+            <button class="btn primary" type="submit">添加监控</button>
+          </form>
+        </section>
+
+        <section>
+          <h2>已有监控</h2>
+          <div class="keywords" id="keywords"></div>
+        </section>
+
+        <section>
+          <h2>操作结果</h2>
+          <div class="log" id="log">等待操作...</div>
+        </section>
+      </aside>
+
+      <main>
+        <div class="topbar">
+          <strong>报告预览</strong>
+          <a class="btn" id="openReport" href="http://localhost:8090/" target="_blank">新窗口打开</a>
+        </div>
+        <iframe id="reportFrame" title="TrendRadar 报告"></iframe>
+      </main>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      function setLog(value) {
+        $("log").textContent = value || "完成";
+      }
+
+      function fmtDate(value) {
+        if (!value) return "-";
+        return new Date(value).toLocaleString("zh-CN", { hour12: false });
+      }
+
+      async function api(path, options) {
+        const res = await fetch(path, {
+          headers: { "content-type": "application/json" },
+          ...options,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.output || "请求失败");
+        return data;
+      }
+
+      async function loadStatus() {
+        const data = await api("/api/status");
+        $("webPort").textContent = data.webPort;
+        $("updatedAt").textContent = fmtDate(data.reportUpdatedAt);
+        $("pushWindow").textContent = data.pushWindow;
+        $("aiModel").textContent = data.aiEnabled ? data.aiModel || "已开启" : "未开启";
+        $("feishu").textContent = data.feishuConfigured ? "已接入" : "未接入";
+        $("immediate").textContent = data.immediateRun === "true" ? "开启" : "关闭";
+        $("reportFrame").src = `${data.reportUrl}?_=${Date.now()}`;
+        $("openReport").href = data.reportUrl;
+        $("keywords").innerHTML = data.keywordGroups.length
+          ? data.keywordGroups.map((group) => `
+              <div class="chip">
+                <strong>${escapeHtml(group.name)}</strong>
+                <span>${escapeHtml(group.keywords.join("、") || "未列出关键词")}</span>
+              </div>
+            `).join("")
+          : "<div class='chip'><strong>暂无</strong><span>还没有解析到监控组</span></div>";
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "\"": "&quot;",
+          "'": "&#039;",
+        }[char]));
+      }
+
+      $("refreshBtn").addEventListener("click", async () => {
+        setLog("正在刷新状态...");
+        try {
+          await loadStatus();
+          setLog("状态已刷新。");
+        } catch (error) {
+          setLog(error.message);
+        }
+      });
+
+      $("runBtn").addEventListener("click", async () => {
+        setLog("正在触发抓取，请稍等...");
+        $("runBtn").disabled = true;
+        try {
+          const data = await api("/api/run", { method: "POST", body: "{}" });
+          setLog(data.output || data.message);
+          await loadStatus();
+        } catch (error) {
+          setLog(error.message);
+        } finally {
+          $("runBtn").disabled = false;
+        }
+      });
+
+      $("restartBtn").addEventListener("click", async () => {
+        setLog("正在重启 TrendRadar...");
+        $("restartBtn").disabled = true;
+        try {
+          const data = await api("/api/restart", { method: "POST", body: "{}" });
+          setLog(data.output || "重启完成。");
+          await loadStatus();
+        } catch (error) {
+          setLog(error.message);
+        } finally {
+          $("restartBtn").disabled = false;
+        }
+      });
+
+      $("keywordForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const payload = Object.fromEntries(form.entries());
+        setLog("正在添加监控...");
+        try {
+          const data = await api("/api/keywords", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          setLog(`已添加：${data.created.name}\n重启或下一次抓取时生效。`);
+          event.currentTarget.reset();
+          await loadStatus();
+        } catch (error) {
+          setLog(error.message);
+        }
+      });
+
+      loadStatus().catch((error) => setLog(error.message));
+    </script>
+  </body>
+</html>
